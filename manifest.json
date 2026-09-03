@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "opencode.usage",
+  "name": "Opencode Usage",
+  "version": "1.0.0",
+  "author": "lkzwieder",
+  "license": "MIT",
+  "description": "Feeds opencode token usage and cloud-cost savings into the Omarchy agents panel, so the models you run yourself get a tab alongside the coding agents Omarchy already tracks.",
+  "kinds": ["service"],
+  "entryPoints": {
+    "service": "Service.qml"
+  },
+  "service": {
+    "defaults": {
+      "refreshIntervalSec": 900
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 60,
+        "max": 3600,
+        "step": 30,
+        "defaultValue": 900
+      }
+    ]
+  }
+}

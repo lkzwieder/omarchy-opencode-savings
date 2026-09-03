@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Print one opencode usage record for the Omarchy agents panel.
+
+Same contract as Omarchy's own omarchy-agent-usage-<agent> collectors, plus a
+`savings` extension: local models have no rate-limit window to meter, so the
+record reports what the traffic would have cost instead.
+"""
+import datetime
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import opencode_usage as usage
+
+WINDOW = 7
+
+
+def build():
+    by_model, by_day, by_day_model, sessions, total_sessions = usage.collect()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    today = datetime.date.today()
+
+    record = {"schemaVersion": 1, "id": "opencode", "name": "Opencode",
+              "updatedAt": now, "limits": []}
+
+    if not by_model:
+        record.update(ready=False, hasLocalStats=False, tierLabel="Local",
+                      usageStatusText="No opencode usage recorded",
+                      recentDays=[], modelUsage={})
+        return record
+
+    pricer = usage.Pricer()
+    base_name, base_price = usage.baseline()
+
+    def rate(per_model):
+        return usage.rate(per_model, pricer, base_price)
+
+    recent, savings_by_day = [], []
+    for offset in range(WINDOW - 1, -1, -1):
+        day = today - datetime.timedelta(days=offset)
+        paid, equivalent, base = rate(by_day_model.get(day, {}))
+        tokens = by_day.get(day, {}).get("total", 0)
+        recent.append({"date": day.isoformat(), "messageCount": tokens})
+        savings_by_day.append({
+            "date": day.isoformat(),
+            "saved": round(max(0.0, base - paid), 4),
+            "savedVsEquivalent": round(max(0.0, equivalent - paid), 4),
+            "spent": round(paid, 4),
+            "tokens": tokens,
+        })
+
+    model_usage = {}
+    for key, counters in by_model.items():
+        provider, _, model = key.partition("/")
+        model_usage[pricer.short_name(provider, model)] = {
+            "inputTokens": counters["input"],
+            "outputTokens": counters["output"],
+            "cacheReadInputTokens": counters["cache_read"],
+            "cacheCreationInputTokens": counters["cache_write"],
+        }
+
+    today_by_model = {}
+    for key, counters in by_day_model.get(today, {}).items():
+        provider, _, model = key.partition("/")
+        today_by_model[pricer.short_name(provider, model)] = counters["total"]
+
+    active = sorted(day.isoformat() for day in by_day if by_day[day].get("total"))
+    paid, equivalent, base = rate(by_model)
+    today_paid, _, today_base = rate(by_day_model.get(today, {}))
+    monthly = (base - paid) / max(1, len(active)) * 30
+    charged_models = [key for key in by_model if not pricer.is_free(key)]
+
+    record.update(
+        ready=True,
+        hasLocalStats=True,
+        hasPromptStats=True,
+        tierLabel="Local" if not charged_models else "Mixed",
+        todayPrompts=by_day.get(today, {}).get("prompts", 0),
+        todaySessions=len(sessions.get(today, ())),
+        todayTotalTokens=by_day.get(today, {}).get("total", 0),
+        todayTokensByModel=today_by_model,
+        recentDays=recent,
+        totalPrompts=sum(c.get("prompts", 0) for c in by_day.values()),
+        totalSessions=total_sessions,
+        activeDays=len(active),
+        activeDates=active,
+        modelUsage=model_usage,
+        savingsCurrency="USD",
+        savingsBaselineName=base_name,
+        savingsByDay=savings_by_day,
+        savings={
+            "spent": round(paid, 4),
+            "equivalent": round(equivalent, 4),
+            "baseline": round(base, 4),
+            "savedVsEquivalent": round(equivalent - paid, 4),
+            "savedVsBaseline": round(base - paid, 4),
+            "today": round(today_base - today_paid, 4),
+            "monthlyPace": round(monthly, 2),
+        },
+    )
+    return record
+
+
+if __name__ == "__main__":
+    print(json.dumps(build()))

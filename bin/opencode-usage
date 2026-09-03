@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""The same numbers as the Omarchy panel, for a terminal."""
+import argparse
+import collections
+import datetime
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import opencode_usage as usage
+
+C = {"fg": "\033[38;5;223m", "dim": "\033[38;5;101m", "bar": "\033[38;5;180m",
+     "hi": "\033[38;5;209m", "ok": "\033[38;5;114m", "b": "\033[1m", "r": "\033[0m"}
+W = 58
+
+
+def human(n):
+    if n >= 1e6:
+        return "%.1fM" % (n / 1e6)
+    if n >= 1e3:
+        return "%.1fK" % (n / 1e3)
+    return str(int(n))
+
+
+def money(x):
+    return "${:,.2f}".format(x)
+
+
+def bar(fraction, width):
+    filled = 0 if fraction <= 0 else max(1, round(fraction * width))
+    return C["bar"] + "━" * filled + C["dim"] + "━" * (width - filled) + C["r"]
+
+
+def line(left, right, lstyle="fg", rstyle="fg"):
+    pad = " " * max(1, W - len(left) - len(right))
+    print("  %s%s%s%s%s%s%s" % (C[lstyle], left, C["dim"], pad, C[rstyle], right, C["r"]))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--days", type=int, default=7, help="days to chart (default 7)")
+    args = parser.parse_args()
+
+    by_model, by_day, by_day_model, _sessions, total_sessions = usage.collect()
+    if not by_model:
+        sys.exit("no opencode usage recorded")
+    pricer = usage.Pricer()
+    base_name, base_price = usage.baseline()
+    today = datetime.date.today()
+
+    def rate(per_model):
+        return usage.rate(per_model, pricer, base_price)
+
+    print("\n  %s✳%s  %s%sOpencode%s\n" % (C["hi"], C["r"], C["b"], C["fg"], C["r"]))
+
+    print("  %sTOKENS AND SAVINGS BY DAY%s" % (C["dim"], C["r"]))
+    span = [today - datetime.timedelta(days=i) for i in range(args.days - 1, -1, -1)]
+    saved = {}
+    for day in span:
+        paid, _, base = rate(by_day_model.get(day, {}))
+        saved[day] = max(0.0, base - paid)
+    peak = max(list(saved.values()) + [0.0001])
+    for day in span:
+        label = "Today" if day == today else day.strftime("%a %d")
+        style = C["b"] + C["fg"] if day == today else C["fg"]
+        print("  %s%-7s%s%s %s%8s%s %s%8s%s" % (
+            style, label, C["r"], bar(saved[day] / peak, 26),
+            C["ok"], money(saved[day]), C["r"],
+            C["dim"], human(by_day.get(day, {}).get("total", 0)), C["r"]))
+
+    print("\n  %sTOKENS AND SAVINGS BY MODEL%s" % (C["dim"], C["r"]))
+    ordered = sorted(by_model.items(), key=lambda kv: -kv[1]["total"])
+    peak = max(counters["total"] for _, counters in ordered)
+    for key, counters in ordered:
+        provider, _, model = key.partition("/")
+        name = pricer.short_name(provider, model)
+        charged, _cloud = pricer.price(key)
+        paid = usage.cost(counters, charged)
+        right = "%s  %s" % (human(counters["total"]),
+                            money(usage.cost(counters, base_price) - paid))
+        row = ("%s%s%s" % (name, " " * max(1, W - len(name) - len(right)), right))[:W].ljust(W)
+        filled = round(counters["total"] / peak * W)
+        print("  \033[48;5;238m%s%s%s%s%s%s" % (
+            C["fg"], row[:filled], C["r"], C["dim"], row[filled:], C["r"]))
+        print("  %s  %d msgs · in %s · out %s · cache %s%s%s" % (
+            C["dim"], counters["msgs"], human(counters["input"]),
+            human(counters["output"]), human(counters["cache_read"]),
+            "" if charged is None else " · paid " + money(paid), C["r"]))
+
+    paid, equivalent, base = rate(by_model)
+    totals = collections.Counter()
+    for counters in by_model.values():
+        totals.update(counters)
+    active = [day for day in by_day if by_day[day].get("total")]
+
+    print("\n  %sTOTAL%s" % (C["dim"], C["r"]))
+    line("Paid", money(paid), rstyle="ok")
+    line("Same models in the cloud", money(equivalent))
+    line("Everything on %s" % base_name, money(base))
+    print("  %s%s%s" % (C["dim"], "─" * W, C["r"]))
+    line("Saved vs equivalent cloud", money(equivalent - paid), lstyle="b", rstyle="ok")
+    line("Saved vs %s" % base_name, money(base - paid), lstyle="b", rstyle="ok")
+    print("\n  %s%s tokens · %d replies · %d sessions · %d active days · %s/month at this pace%s\n" % (
+        C["dim"], human(totals["total"]), totals["msgs"], total_sessions, len(active),
+        money((base - paid) / max(1, len(active)) * 30), C["r"]))
+
+
+if __name__ == "__main__":
+    main()
