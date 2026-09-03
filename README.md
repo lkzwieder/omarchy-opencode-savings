@@ -29,6 +29,18 @@ The plugin is a collector on a timer: it writes a usage record into
 looks. Nothing in the panel is patched or replaced. The tab simply appears,
 and disappears again if you remove the plugin.
 
+To remove it:
+
+```bash
+omarchy plugin remove opencode.usage
+```
+
+That deletes the checkout and the tab with it. The usage record it wrote is a
+single file, `~/.local/state/omarchy/agents/usage/opencode.json`, and the
+optional overrides live in `~/.config/omarchy/agents/opencode.json`; delete
+either if you want nothing left behind. Nothing else on the system is touched,
+and no configuration of yours is ever rewritten.
+
 The savings sections need the panel to know about the `savings` field. Until
 that lands upstream, a stock Omarchy shows the Opencode tab with tokens by day
 and by model; the dollar figures are always available from the terminal:
@@ -83,6 +95,10 @@ Overrides live in `~/.config/omarchy/agents/opencode.json`, all optional:
 
 Omarchy with the agents panel (`omarchy.agents`), opencode, Python 3, and at
 least one session already recorded in `~/.local/share/opencode/opencode.db`.
+
+No third-party Python packages, no network access, and nothing to sign in to.
+The collector reads two files opencode already maintains, the session database
+and the cached models.dev catalog, and writes one JSON record.
 
 ## License
 
