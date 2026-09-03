@@ -1,12 +1,14 @@
 {
   "schemaVersion": 1,
-  "id": "opencode.usage",
-  "name": "Opencode Usage",
+  "id": "lkzwieder.opencode-usage",
+  "name": "Opencode Savings",
   "version": "1.0.0",
   "author": "lkzwieder",
   "license": "MIT",
-  "description": "Feeds opencode token usage and cloud-cost savings into the Omarchy agents panel, so the models you run yourself get a tab alongside the coding agents Omarchy already tracks.",
-  "kinds": ["service"],
+  "description": "Prices the tokens opencode spends on models you host yourself, and shows what running them locally saved, as a tab in the Omarchy agents panel.",
+  "kinds": [
+    "service"
+  ],
   "entryPoints": {
     "service": "Service.qml"
   },

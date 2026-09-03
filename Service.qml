@@ -48,7 +48,7 @@ Item {
 
     stderr: StdioCollector {
       waitForEnd: true
-      onStreamFinished: if (text.trim() !== "") console.warn("opencode.usage", text.trim())
+      onStreamFinished: if (text.trim() !== "") console.warn("lkzwieder.opencode-usage", text.trim())
     }
   }
 
@@ -60,9 +60,9 @@ Item {
     onTriggered: if (!collector.running) collector.running = true
   }
 
-  // `omarchy-shell opencode.usage refresh`, handy after a long session.
+  // `omarchy-shell lkzwieder.opencode-usage refresh`, handy after a long session.
   IpcHandler {
-    target: "opencode.usage"
+    target: "lkzwieder.opencode-usage"
 
     function refresh(): string {
       if (!collector.running) collector.running = true

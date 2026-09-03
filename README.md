@@ -1,4 +1,4 @@
-# Opencode Usage
+# Opencode Savings
 
 An **Opencode** tab in the Omarchy agents panel, alongside the coding agents it
 already tracks, for the models you run yourself.
@@ -21,7 +21,7 @@ of what is left of an allowance:
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/lkzwieder/omarchy-opencode-usage.git --enable
+omarchy plugin add https://github.com/lkzwieder/omarchy-opencode-savings.git --enable
 ```
 
 The plugin is a collector on a timer: it writes a usage record into
@@ -32,7 +32,7 @@ and disappears again if you remove the plugin.
 To remove it:
 
 ```bash
-omarchy plugin remove opencode.usage
+omarchy plugin remove lkzwieder.opencode-usage
 ```
 
 That deletes the checkout and the tab with it. The usage record it wrote is a
@@ -46,7 +46,7 @@ that lands upstream, a stock Omarchy shows the Opencode tab with tokens by day
 and by model; the dollar figures are always available from the terminal:
 
 ```bash
-~/.config/omarchy/plugins/opencode.usage/bin/opencode-usage
+~/.config/omarchy/plugins/lkzwieder.opencode-usage/bin/opencode-usage
 ```
 
 ## How a model is priced
@@ -72,7 +72,7 @@ taken the same number of tokens on another model.
 
 `refreshIntervalSec` (default 900) in the plugin's entry in
 `~/.config/omarchy/shell.json`. Force a refresh with
-`omarchy-shell opencode.usage refresh`.
+`omarchy-shell lkzwieder.opencode-usage refresh`.
 
 Overrides live in `~/.config/omarchy/agents/opencode.json`, all optional:
 
